@@ -4,6 +4,7 @@ const ytDlp = require('yt-dlp-exec');
 const ffmpeg = require('fluent-ffmpeg');
 const ffmpegPath = require('ffmpeg-static');
 const { Readable } = require('stream');
+require('dotenv').config();
 
 const app = express();
 ffmpeg.setFfmpegPath(ffmpegPath);
@@ -19,6 +20,23 @@ function extractVideoId(url) {
 // Function to construct YouTube URL from video ID
 function getYouTubeUrl(videoId) {
     return `https://www.youtube.com/watch?v=${videoId}`;
+}
+
+// Function to get yt-dlp options with cookies if available
+function getYtDlpOptions(additionalOptions = {}) {
+    const options = {
+        noCheckCertificates: true,
+        noWarnings: true,
+        preferFreeFormats: true,
+        ...additionalOptions
+    };
+
+    // Add cookies if available in environment
+    if (process.env.YOUTUBE_COOKIES) {
+        options.cookies = process.env.YOUTUBE_COOKIES;
+    }
+
+    return options;
 }
 
 app.set('view engine', 'ejs');
@@ -37,13 +55,10 @@ app.post('/get-info', async (req, res) => {
         const videoId = extractVideoId(videoUrl);
         const fullUrl = getYouTubeUrl(videoId);
         
-        // Get video info
-        const info = await ytDlp(fullUrl, {
-            dumpSingleJson: true,
-            noCheckCertificates: true,
-            noWarnings: true,
-            preferFreeFormats: true
-        });
+        // Get video info with cookies if available
+        const info = await ytDlp(fullUrl, getYtDlpOptions({
+            dumpSingleJson: true
+        }));
 
         res.json({
             title: info.title,
@@ -65,29 +80,23 @@ app.get('/download-mp3/:videoId', async (req, res) => {
         const videoId = req.params.videoId;
         const videoUrl = getYouTubeUrl(videoId);
         
-        // Get video info for the title
-        const info = await ytDlp(videoUrl, {
-            dumpSingleJson: true,
-            noCheckCertificates: true,
-            noWarnings: true,
-            preferFreeFormats: true
-        });
+        // Get video info for the title with cookies if available
+        const info = await ytDlp(videoUrl, getYtDlpOptions({
+            dumpSingleJson: true
+        }));
 
         const title = info.title.replace(/[^\w\s]/gi,'');
         
         res.header('Content-Disposition', `attachment; filename="${title}.mp3"`);
         res.header('Content-Type', 'audio/mpeg');
 
-        // Download and pipe audio
-        const audio = ytDlp.exec(videoUrl, {
+        // Download and pipe audio with cookies if available
+        const audio = ytDlp.exec(videoUrl, getYtDlpOptions({
             output: '-',
             extractAudio: true,
             audioFormat: 'mp3',
-            audioQuality: 0,
-            noCheckCertificates: true,
-            noWarnings: true,
-            preferFreeFormats: true
-        });
+            audioQuality: 0
+        }));
 
         const audioStream = new Readable().wrap(audio.stdout);
         
@@ -125,16 +134,13 @@ app.post('/download-mp3', async (req, res) => {
         res.header('Content-Disposition', `attachment; filename="${title}.mp3"`);
         res.header('Content-Type', 'audio/mpeg');
 
-        // Download and pipe audio
-        const audio = ytDlp.exec(videoUrl, {
+        // Download and pipe audio with cookies if available
+        const audio = ytDlp.exec(videoUrl, getYtDlpOptions({
             output: '-',
             extractAudio: true,
             audioFormat: 'mp3',
-            audioQuality: 0,
-            noCheckCertificates: true,
-            noWarnings: true,
-            preferFreeFormats: true
-        });
+            audioQuality: 0
+        }));
 
         const audioStream = new Readable().wrap(audio.stdout);
         
