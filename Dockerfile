@@ -1,8 +1,14 @@
 # Use Node.js LTS version
 FROM node:20-slim
 
-# Install ffmpeg which is required for audio conversion
-RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
+# Install ffmpeg, Python, and build dependencies
+RUN apt-get update && \
+    apt-get install -y \
+    ffmpeg \
+    python3 \
+    python3-pip \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create app directory
 WORKDIR /usr/src/app
