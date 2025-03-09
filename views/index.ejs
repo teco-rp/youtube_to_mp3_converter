@@ -26,7 +26,13 @@
             margin: 10px 0;
             color: #fff;
         }
-        .download-btn {
+        .button-group {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 15px;
+        }
+        .download-btn, .copy-btn {
             background: #ff0000;
             color: white;
             border: none;
@@ -34,16 +40,36 @@
             border-radius: 5px;
             cursor: pointer;
             font-size: 16px;
-            margin-top: 15px;
             transition: background 0.3s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .copy-btn {
+            background: #4CAF50;
         }
         .download-btn:hover {
             background: #cc0000;
+        }
+        .copy-btn:hover {
+            background: #388E3C;
         }
         .error-message {
             color: #ff6b6b;
             margin-top: 10px;
             display: none;
+        }
+        .copy-tooltip {
+            position: fixed;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            opacity: 0;
         }
     </style>
 </head>
@@ -72,9 +98,18 @@
             <img id="thumbnail" src="" alt="Video thumbnail">
             <h3 id="video-title"></h3>
             <p id="video-duration"></p>
-            <button class="download-btn" id="download-btn">Download MP3</button>
+            <div class="button-group">
+                <a href="#" class="download-btn" id="download-btn">
+                    <i class="fas fa-download"></i> Download MP3
+                </a>
+                <button class="copy-btn" id="copy-btn">
+                    <i class="fas fa-copy"></i> Copy Link
+                </button>
+            </div>
         </div>
     </div>
+
+    <div class="copy-tooltip" id="copy-tooltip">Link copied!</div>
 
     <p style="position: absolute; bottom: 0; left: 0; right: 0; text-align: center; padding: 10px;">Originally created by <a href="https://github.com/sarthakvs/youtube_to_mp3_converter">sarthakvs</a></p>
 
@@ -113,26 +148,27 @@
                 // Show video info section
                 document.querySelector('.video-info').style.display = 'block';
 
-                // Setup download button
-                document.getElementById('download-btn').onclick = () => {
-                    const form = document.createElement('form');
-                    form.method = 'POST';
-                    form.action = '/download-mp3';
-                    
-                    const urlInput = document.createElement('input');
-                    urlInput.type = 'hidden';
-                    urlInput.name = 'url';
-                    urlInput.value = data.url;
+                // Update download button href
+                const downloadBtn = document.getElementById('download-btn');
+                const relativeUrl = `/download-mp3/${data.videoId}`;
+                downloadBtn.href = relativeUrl;
 
-                    const titleInput = document.createElement('input');
-                    titleInput.type = 'hidden';
-                    titleInput.name = 'title';
-                    titleInput.value = data.title;
-
-                    form.appendChild(urlInput);
-                    form.appendChild(titleInput);
-                    document.body.appendChild(form);
-                    form.submit();
+                // Setup copy button
+                const copyBtn = document.getElementById('copy-btn');
+                const fullUrl = `${window.location.origin}${relativeUrl}`;
+                copyBtn.onclick = async () => {
+                    try {
+                        await navigator.clipboard.writeText(fullUrl);
+                        const tooltip = document.getElementById('copy-tooltip');
+                        tooltip.style.opacity = '1';
+                        tooltip.style.left = `${event.pageX + 10}px`;
+                        tooltip.style.top = `${event.pageY - 30}px`;
+                        setTimeout(() => {
+                            tooltip.style.opacity = '0';
+                        }, 2000);
+                    } catch (err) {
+                        console.error('Failed to copy:', err);
+                    }
                 };
 
             } catch (error) {

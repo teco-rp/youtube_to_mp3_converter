@@ -9,6 +9,18 @@ const app = express();
 ffmpeg.setFfmpegPath(ffmpegPath);
 const PORT = process.env.PORT || 3000;
 
+// Function to extract video ID from URL
+function extractVideoId(url) {
+    const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[7].length === 11) ? match[7] : url;
+}
+
+// Function to construct YouTube URL from video ID
+function getYouTubeUrl(videoId) {
+    return `https://www.youtube.com/watch?v=${videoId}`;
+}
+
 app.set('view engine', 'ejs');
 app.use(express.static("public"));
 
@@ -22,9 +34,11 @@ app.get('/', (req, res) => {
 app.post('/get-info', async (req, res) => {
     try {
         const videoUrl = req.body.url;
+        const videoId = extractVideoId(videoUrl);
+        const fullUrl = getYouTubeUrl(videoId);
         
         // Get video info
-        const info = await ytDlp(videoUrl, {
+        const info = await ytDlp(fullUrl, {
             dumpSingleJson: true,
             noCheckCertificates: true,
             noWarnings: true,
@@ -35,7 +49,8 @@ app.post('/get-info', async (req, res) => {
             title: info.title,
             thumbnail: info.thumbnail,
             duration: info.duration,
-            url: videoUrl
+            url: fullUrl,
+            videoId: videoId
         });
 
     } catch(error) {
@@ -44,6 +59,64 @@ app.post('/get-info', async (req, res) => {
     }
 });
 
+// New route for direct video ID downloads
+app.get('/download-mp3/:videoId', async (req, res) => {
+    try {
+        const videoId = req.params.videoId;
+        const videoUrl = getYouTubeUrl(videoId);
+        
+        // Get video info for the title
+        const info = await ytDlp(videoUrl, {
+            dumpSingleJson: true,
+            noCheckCertificates: true,
+            noWarnings: true,
+            preferFreeFormats: true
+        });
+
+        const title = info.title.replace(/[^\w\s]/gi,'');
+        
+        res.header('Content-Disposition', `attachment; filename="${title}.mp3"`);
+        res.header('Content-Type', 'audio/mpeg');
+
+        // Download and pipe audio
+        const audio = ytDlp.exec(videoUrl, {
+            output: '-',
+            extractAudio: true,
+            audioFormat: 'mp3',
+            audioQuality: 0,
+            noCheckCertificates: true,
+            noWarnings: true,
+            preferFreeFormats: true
+        });
+
+        const audioStream = new Readable().wrap(audio.stdout);
+        
+        const ffmpegCommand = ffmpeg(audioStream)
+            .audioBitrate(128)
+            .format('mp3');
+
+        ffmpegCommand.pipe(res, { end: true });
+
+        req.on('close', () => {
+            console.log('Client aborted download. Stopping FFmpeg...');
+            ffmpegCommand.kill('SIGKILL');
+            audio.kill();
+        });
+
+        ffmpegCommand.on('error', (err) => {
+            console.error('FFmpeg error:', err);
+            if (!res.headersSent) {
+                res.status(500).send('Conversion Failed');
+            }
+        });
+
+    } catch(error) {
+        console.error('Error:', error);
+        res.status(500).send('Failed to process request');
+    }
+});
+
+// Keep the POST route for backward compatibility
 app.post('/download-mp3', async (req, res) => {
     try {
         const videoUrl = req.body.url;

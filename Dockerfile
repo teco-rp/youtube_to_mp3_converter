@@ -8,7 +8,8 @@ RUN apt-get update && \
     python3 \
     python3-pip \
     build-essential \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -s /usr/bin/python3 /usr/bin/python
 
 # Create app directory
 WORKDIR /usr/src/app
