@@ -6,14 +6,21 @@
 }
 
 body{
-  color: white;
+  color: rgb(255, 255, 255);
+  background: linear-gradient(to bottom, #000000, #110000);
   overflow: hidden;
   font-family: 'Orbitron', sans-serif;
 }
 
 .top-container{
   height: 45vh;
-  background-color: red;
+  background-color: rgb(173, 13, 13);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 20px;
 }
 
 .bottom-container{

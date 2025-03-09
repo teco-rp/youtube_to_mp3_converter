@@ -8,6 +8,44 @@
     <link rel="stylesheet" href="/css/style.css">
     <link rel="icon" href="/images/youtube2mp3icon.png" type="image/x-icon" >
     <title>YT2MP3 Magic</title>
+    <style>
+        .video-info {
+            display: none;
+            margin-top: 20px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            text-align: center;
+        }
+        .video-info img {
+            max-width: 320px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        .video-info h3 {
+            margin: 10px 0;
+            color: #fff;
+        }
+        .download-btn {
+            background: #ff0000;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 15px;
+            transition: background 0.3s;
+        }
+        .download-btn:hover {
+            background: #cc0000;
+        }
+        .error-message {
+            color: #ff6b6b;
+            margin-top: 10px;
+            display: none;
+        }
+    </style>
 </head>
 <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-9VYKQ8W52L"></script>
@@ -20,17 +58,91 @@
 </script>
 <body>
     <div class="top-container">
-        <form action="/convert-mp3" method = "POST" id="form">
-            <h1><i class="fa-brands fa-youtube"></i>Youtube to MP3 Magic</h1>
+        <form id="form">
+            <h1><i class="fa-brands fa-youtube"></i>Youtube to MP3</h1>
             <h4>Enter Video url</h4>
             <div>
-                <input type="text" name="url" placeholder="Video goes here"><button type="submit" id="convert-btn">Download!</button>
+                <input type="text" name="url" placeholder="Video goes here">
+                <button type="submit" id="convert-btn">Get Info</button>
             </div>
-            <div>
-                <p>Originally created by <a href="https://github.com/sarthakvs/youtube_to_mp3_converter">sarthakvs</a></p>
-            </div>
+            <div class="error-message"></div>
         </form>
+
+        <div class="video-info">
+            <img id="thumbnail" src="" alt="Video thumbnail">
+            <h3 id="video-title"></h3>
+            <p id="video-duration"></p>
+            <button class="download-btn" id="download-btn">Download MP3</button>
+        </div>
     </div>
 
+    <p style="position: absolute; bottom: 0; left: 0; right: 0; text-align: center; padding: 10px;">Originally created by <a href="https://github.com/sarthakvs/youtube_to_mp3_converter">sarthakvs</a></p>
+
+    <script>
+        document.getElementById('form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const url = e.target.url.value;
+            const convertBtn = document.getElementById('convert-btn');
+            const errorMessage = document.querySelector('.error-message');
+            
+            convertBtn.disabled = true;
+            convertBtn.textContent = 'Loading...';
+            errorMessage.style.display = 'none';
+
+            try {
+                const response = await fetch('/get-info', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ url })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch video information');
+                }
+
+                const data = await response.json();
+                
+                // Update video info
+                document.getElementById('thumbnail').src = data.thumbnail;
+                document.getElementById('video-title').textContent = data.title;
+                document.getElementById('video-duration').textContent = 
+                    `Duration: ${Math.floor(data.duration / 60)}:${String(data.duration % 60).padStart(2, '0')}`;
+                
+                // Show video info section
+                document.querySelector('.video-info').style.display = 'block';
+
+                // Setup download button
+                document.getElementById('download-btn').onclick = () => {
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = '/download-mp3';
+                    
+                    const urlInput = document.createElement('input');
+                    urlInput.type = 'hidden';
+                    urlInput.name = 'url';
+                    urlInput.value = data.url;
+
+                    const titleInput = document.createElement('input');
+                    titleInput.type = 'hidden';
+                    titleInput.name = 'title';
+                    titleInput.value = data.title;
+
+                    form.appendChild(urlInput);
+                    form.appendChild(titleInput);
+                    document.body.appendChild(form);
+                    form.submit();
+                };
+
+            } catch (error) {
+                errorMessage.textContent = 'Error: Could not fetch video information. Please check the URL and try again.';
+                errorMessage.style.display = 'block';
+            } finally {
+                convertBtn.disabled = false;
+                convertBtn.textContent = 'Get Info';
+            }
+        });
+    </script>
 </body>
 </html>
